@@ -86,12 +86,12 @@ def process_files(queue, files):
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('-folder', required=True, help='path to Wikipedia
-            extracted by WikiExtractor')
+    argparser.add_argument('-folder', required=True,
+        help='path to Wikipedia extracted by WikiExtractor')
     argparser.add_argument('-output', required=True, help='output path')
     argparser.add_argument('-nproc', type=int, default=1, help='# processes')
     argparser.add_argument('--add_wiki_title', action='store_true',
-                           help='whether to export Wiki title in the sentence')
+        help='whether to export Wiki title in the sentence')
     argparser.add_argument('--debug', action='store_true')
     args = argparser.parse_args()
     print args
