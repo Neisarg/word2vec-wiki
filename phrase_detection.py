@@ -6,16 +6,21 @@ import os
 
 def train():
     sents = LineSentence(args.sents)
-    save_path = os.path.join(args.save_dir, save_model)
-    print 'Save to:', save_path
 
     global bigram, trigram
-    bigram = Phrases(sents, min_count=args.min_count, threshold=args.bi_threshold)
-    bigram.save(save_model + '.bi')
+    bi_path = os.path.join(args.save_dir, bi_model)
+    print 'Bigram: ', bi_path
+    if os.path.exists(bi_path):
+        bigram = Phrases.load(bi_path)
+    else:
+        bigram = Phrases(sents, min_count=args.min_count, threshold=args.bi_threshold)
+        bigram.save(bi_path)
 
-    trigram = Phrases(bigram[sents], min_count=min_count,
+    tri_path = os.path.join(args.save_dir, bi_model + '_' + tri_model)
+    print 'Trigram: ', tri_path
+    trigram = Phrases(bigram[sents], min_count=args.min_count,
                       threshold=args.tri_threshold)
-    trigram.save(save_model + '.tri')
+    trigram.save(tri_path)
 
 
 if __name__ == '__main__':
@@ -26,15 +31,17 @@ if __name__ == '__main__':
     argparser.add_argument('-sents', required=True)
     argparser.add_argument('-save_dir',
             default='/data/home/cul226/word2vec-gensim/')
-    argparser.add_argument('-save_model')
+    argparser.add_argument('-bi_model')
+    argparser.add_argument('-tri_model')
     argparser.add_argument('-min_count', type=int, default=20)
-    argparser.add_argument('-bi_threshold', type=float, default=150.)
-    argparser.add_argument('-tri_threshold', type=float, default=100.)
+    argparser.add_argument('-bi_threshold', type=int, default=150)
+    argparser.add_argument('-tri_threshold', type=int, default=100)
     args = argparser.parse_args()
     print args
 
-    save_model = args.save_model if args.save_model else\
-        'phrase_{}_{}_{}'.format(args.min_count, args.bi_threshold,
-                                 args.tri_threshold)
+    bi_model = args.bi_model if args.bi_model else\
+        'bigram_{}_{}'.format(args.min_count, args.bi_threshold)
+    tri_model = args.tri_model if args.tri_model else\
+        'trigram_{}_{}'.format(args.min_count, args.tri_threshold)
     train()
 
