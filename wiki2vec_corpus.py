@@ -52,31 +52,31 @@ def process_files(queue, files):
             idx = text.find('\n\n')
             if idx != -1:
                 text = text[idx+2:]
+            if args.add_wiki_title:
+                wikis = get_wikis(text)
+                text = re.sub('<a href=".+?">(.+?)</a>',
+                        repl_html_tag, text)
+            else:
+                text = re.sub('<[^>]*>', '', text)
             text = text.strip().decode('utf8')
             if len(text) == 0:
                 continue
+            wiki_idx = 0
             for line in text.split('\n'):
                 sents = sent_tokenize(line)
                 for sent in sents:
+                    wds = [wd for wd in word_tokenize(sent)
+                           if wd not in punkts]
                     if args.add_wiki_title:
-                        wikis = get_wikis(sent)
-                        sent_no_html = re.sub('<a href=".+?">(.+?)</a>',
-                                repl_html_tag,
-                                sent.encode('utf8')).decode('utf8')
-                    else:
-                        sent_no_html = re.sub('<[^>]*>', '', sent)
-                    wds = [wd for wd in word_tokenize(sent_no_html)
-                            if wd not in punkts]
-                    if len(wds) < MIN_SENT_LEN:
-                        continue
-                    if args.add_wiki_title:
-                        wiki_idx = 0
                         for i, wd in enumerate(wds):
                             if wd == PLACEHOLDER:
-                                wds[i] = wikis[wiki_idx]
+                                wds[i] = wikis[wiki_idx].decode('utf8')
                                 wiki_idx += 1
-                        assert(wiki_idx == len(wikis))
+                    if len(wds) < MIN_SENT_LEN:
+                        continue
                     out.write(' '.join(wds).encode('utf8') + '\n')
+            if args.add_wiki_title:
+                assert(wiki_idx == len(wikis))
         if k % 50 == 0:
             print 'pid:{}\t{}/{}'.format(pid, k, len(files))
         if args.debug:
