@@ -7,7 +7,6 @@ import os
 def train():
     sents = LineSentence(args.sents)
 
-    global bigram, trigram
     bi_path = os.path.join(args.save_dir, bi_model)
     print 'Bigram: ', bi_path
     if os.path.exists(bi_path):
