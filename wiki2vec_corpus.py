@@ -39,6 +39,12 @@ def get_wikis(sent):
     return ret
 
 
+def accept_tokens(sent):
+    wds = [wd for wd in word_tokenize(sent)
+           if not args.no_punct or wd not in puncts]
+    return wds
+
+
 def process_files(queue, files):
     pid = multiprocessing.current_process().pid
     output = '{}.{}'.format(args.output, pid)
@@ -65,8 +71,7 @@ def process_files(queue, files):
             for line in text.split('\n'):
                 sents = sent_tokenize(line)
                 for sent in sents:
-                    wds = [wd for wd in word_tokenize(sent)
-                           if wd not in punkts]
+                    wds = accept_tokens(sent)
                     if args.add_wiki_title:
                         for i, wd in enumerate(wds):
                             if wd == PLACEHOLDER:
@@ -92,6 +97,8 @@ if __name__ == '__main__':
     argparser.add_argument('-nproc', type=int, default=1, help='# processes')
     argparser.add_argument('--add_wiki_title', action='store_true',
         help='whether to export Wiki title in the sentence')
+    argparser.add_argument('--no_punct', action='store_true',
+            help='whether to remove punctuations')
     argparser.add_argument('--debug', action='store_true')
     args = argparser.parse_args()
     print args
@@ -101,9 +108,9 @@ if __name__ == '__main__':
 
     PLACEHOLDER = 'AKAPLACEHOLDER'
     MIN_SENT_LEN = 5
-    punkts = set(string.punctuation)
-    punkts.add('``')
-    punkts.add("''")
+    puncts = set(string.punctuation)
+    puncts.add('``')
+    puncts.add("''")
 
     cnt = 0
     fs = []
