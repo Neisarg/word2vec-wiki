@@ -19,24 +19,15 @@ from the original Wikipedia xml dump.
 import argparse
 import os
 import re
-from nltk.tokenize import sent_tokenize, word_tokenize
-import multiprocessing
 import urllib
 import string
+import HTMLParser
+import multiprocessing
+from nltk.tokenize import sent_tokenize, word_tokenize
 
 
 def repl_html_tag(m):
-    word = m.group(1)
-    return ' {} {}'.format(PLACEHOLDER,  word)
-
-
-def get_wikis(sent):
-    m = re.findall('<a href="(.+?)">.+?</a>', sent)
-    ret = []
-    for link in m:
-        link = urllib.unquote(link)
-        ret.append('WIKI/' + link[0].upper() + link[1:].replace(' ', '_'))
-    return ret
+    return ' ' + PLACEHOLDER + ' '
 
 
 def accept_tokens(sent):
@@ -45,8 +36,52 @@ def accept_tokens(sent):
     return wds
 
 
+def extract_sents(wiki_doc, html_parser=None):
+    results = []
+    assert isinstance(wiki_doc, str)
+    link_regex = '<a href="(.+?)">(.+?)</a>([a-zA-Z-]*)'
+    if args.add_wiki_title:
+        m = re.findall(link_regex, wiki_doc)
+        wikis, anchors = [], []
+        for match in m:
+            wiki = urllib.unquote(match[0])
+            wiki = html_parser.unescape(wiki.decode('utf8'))
+            wiki = 'WIKI/' + wiki[0].upper() + wiki[1:].replace(' ', '_')
+            wikis.append(wiki)
+            anchors.append(match[1] + match[2])
+        wiki_doc = re.sub(link_regex, repl_html_tag, wiki_doc)
+    else:
+        wiki_doc = re.sub('<[^>]*>', '', wiki_doc)
+
+    wiki_idx = 0
+    wiki_doc = wiki_doc.decode('utf8')
+    for line in wiki_doc.split('\n'):
+        sents = sent_tokenize(line)
+        for sent in sents:
+            wds = accept_tokens(sent)
+            if args.add_wiki_title:
+                for i, wd in enumerate(wds):
+                    if wd == PLACEHOLDER:
+                        anchor = anchors[wiki_idx]
+                        anchor_split = word_tokenize(anchor.decode('utf8'))
+                        new_wd = wikis[wiki_idx] + ' ' + ' '.join(anchor_split)
+                        wds[i] = new_wd
+                        wiki_idx += 1
+            if len(wds) < MIN_SENT_LEN:
+                continue
+            sent = ' '.join(wds).encode('utf8')
+            if args.lower:
+                sent = sent.lower()
+            results.append(sent)
+    if args.add_wiki_title:
+        assert(wiki_idx == len(wikis))
+    return results
+
+
 def process_files(queue, files):
     pid = multiprocessing.current_process().pid
+    html_parser = HTMLParser.HTMLParser()
+
     output = '{}.{}'.format(args.output, pid)
     out = open(output, 'w')
     for k, f in enumerate(files):
@@ -58,30 +93,14 @@ def process_files(queue, files):
             idx = text.find('\n\n')
             if idx != -1:
                 text = text[idx+2:]
-            if args.add_wiki_title:
-                wikis = get_wikis(text)
-                text = re.sub('<a href=".+?">(.+?)</a>',
-                        repl_html_tag, text)
-            else:
-                text = re.sub('<[^>]*>', '', text)
-            text = text.strip().decode('utf8')
+            text = text.strip()
             if len(text) == 0:
                 continue
-            wiki_idx = 0
-            for line in text.split('\n'):
-                sents = sent_tokenize(line)
-                for sent in sents:
-                    wds = accept_tokens(sent)
-                    if args.add_wiki_title:
-                        for i, wd in enumerate(wds):
-                            if wd == PLACEHOLDER:
-                                wds[i] = wikis[wiki_idx].decode('utf8')
-                                wiki_idx += 1
-                    if len(wds) < MIN_SENT_LEN:
-                        continue
-                    out.write(' '.join(wds).encode('utf8') + '\n')
-            if args.add_wiki_title:
-                assert(wiki_idx == len(wikis))
+
+            sents = extract_sents(text, html_parser=html_parser)
+            for sent in sents:
+                assert isinstance(sent, str)
+                out.write(sent + '\n')
         if k % 50 == 0:
             print 'pid:{}\t{}/{}'.format(pid, k, len(files))
         if args.debug:
@@ -99,6 +118,8 @@ if __name__ == '__main__':
         help='whether to export Wiki title in the sentence')
     argparser.add_argument('--no_punct', action='store_true',
             help='whether to remove punctuations')
+    argparser.add_argument('--lower', action='store_true',
+            help='lower case')
     argparser.add_argument('--debug', action='store_true')
     args = argparser.parse_args()
     print args
@@ -125,7 +146,7 @@ if __name__ == '__main__':
     queue = multiprocessing.Queue()
     procs = []
     for i in xrange(nproc):
-        p = multiprocessing.Process(target=process_files, 
+        p = multiprocessing.Process(target=process_files,
                                     args=(queue, arg_list[i]))
         procs.append(p)
         p.start()
@@ -138,4 +159,3 @@ if __name__ == '__main__':
 
     for p in procs:
         p.join()
-
