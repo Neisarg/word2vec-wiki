@@ -1,5 +1,5 @@
 if __name__ == '__main__':
-    from gensim.models import Word2Vec
+    from gensim.models import KeyedVectors
     import logging
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
                         level=logging.INFO)
@@ -11,9 +11,9 @@ if __name__ == '__main__':
     args = argparser.parse_args()
     print args
     # load pretrained model
-    model = Word2Vec.load_word2vec_format(args.w2v, binary=args.binary,
+    model = KeyedVectors.load_word2vec_format(args.w2v, binary=args.binary,
             unicode_errors='ignore')
 
     model.init_sims(replace=True)
 
-    model.save(args.output, ignore=['table', 'cum_table'])
+    model.save(args.output)
