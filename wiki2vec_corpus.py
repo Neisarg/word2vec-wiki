@@ -16,7 +16,8 @@ is transformed into:
 Before running this script, we should use WikiExtractor to extract plaintext
 from the original Wikipedia xml dump.
 '''
-import argparse
+
+
 import os
 import re
 import urllib
@@ -44,11 +45,23 @@ def extract_sents(wiki_doc, html_parser=None):
         m = re.findall(link_regex, wiki_doc)
         wikis, anchors = [], []
         for match in m:
-            wiki = urllib.unquote(match[0])
-            wiki = html_parser.unescape(wiki.decode('utf8'))
-            wiki = 'WIKI/' + wiki[0].upper() + wiki[1:].replace(' ', '_')
-            wikis.append(wiki)
-            anchors.append(match[1] + match[2])
+            try:
+                # There are links to sites outside of Wikipedia
+                # in the 2017.3 dump. The regex matching above will also
+                # match these cases. Need to handle them separately.
+                if re.match('^https?%3A', match[0]):
+                    #match[0].startswith('http%3A'):
+                    wikis.append('')
+                    anchors.append(match[1] + match[2])
+                else:
+                    wiki = urllib.unquote(match[0])
+                    wiki = urllib.unquote(wiki)     # to handle cases %2528, %2529
+                    wiki = html_parser.unescape(wiki.decode('utf8'))
+                    wiki = 'WIKI/' + wiki[0].upper() + wiki[1:].replace(' ', '_')
+                    wikis.append(wiki)
+                    anchors.append(match[1] + match[2])
+            except:
+                print(match[0])
         wiki_doc = re.sub(link_regex, repl_html_tag, wiki_doc)
     else:
         wiki_doc = re.sub('<[^>]*>', '', wiki_doc)
@@ -64,7 +77,13 @@ def extract_sents(wiki_doc, html_parser=None):
                     if wd == PLACEHOLDER:
                         anchor = anchors[wiki_idx]
                         anchor_split = word_tokenize(anchor.decode('utf8'))
-                        new_wd = wikis[wiki_idx] + ' ' + ' '.join(anchor_split)
+                        if wikis[wiki_idx]:
+                            if args.keep_anchor:
+                                new_wd = wikis[wiki_idx] + ' ' + ' '.join(anchor_split)
+                            else:
+                                new_wd = wikis[wiki_idx]
+                        else:
+                            new_wd = ' '.join(anchor_split)
                         wds[i] = new_wd
                         wiki_idx += 1
             if len(wds) < MIN_SENT_LEN:
@@ -82,7 +101,8 @@ def process_files(queue, files):
     pid = multiprocessing.current_process().pid
     html_parser = HTMLParser.HTMLParser()
 
-    output = '{}.{}'.format(args.output, pid)
+    output = os.path.join(
+        output_folder, '{}.{}'.format(args.output_prefix, pid))
     out = open(output, 'w')
     for k, f in enumerate(files):
         content = open(f).read()
@@ -109,13 +129,18 @@ def process_files(queue, files):
 
 
 if __name__ == '__main__':
+    import argparse
     argparser = argparse.ArgumentParser()
     argparser.add_argument('-folder', required=True,
         help='path to Wikipedia extracted by WikiExtractor')
-    argparser.add_argument('-output', required=True, help='output path')
+    argparser.add_argument(
+        '-output_folder', required=True, help='folder to save outpus')
+    argparser.add_argument('-output_prefix', default='out', help='output prefix')
     argparser.add_argument('-nproc', type=int, default=1, help='# processes')
     argparser.add_argument('--add_wiki_title', action='store_true',
         help='whether to export Wiki title in the sentence')
+    argparser.add_argument('--keep_anchor', action='store_true',
+        help='if export wiki title, whether to keep anchor text')
     argparser.add_argument('--no_punct', action='store_true',
             help='whether to remove punctuations')
     argparser.add_argument('--lower', action='store_true',
@@ -126,6 +151,9 @@ if __name__ == '__main__':
 
     extract_folder = args.folder
     nproc = args.nproc
+    output_folder = args.output_folder
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
     PLACEHOLDER = 'AKAPLACEHOLDER'
     MIN_SENT_LEN = 5
