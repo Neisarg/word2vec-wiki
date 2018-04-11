@@ -21,16 +21,25 @@ Extract sentences from Wikipedia pages into the following format: one sentence =
 
 ```
 python2.7 wiki2vec_corpus.py -h
-usage: wiki2vec_corpus.py [-h] -folder FOLDER -output OUTPUT [-nproc NPROC]
-                          [--add_wiki_title] [--debug]
+usage: wiki2vec_corpus.py [-h] -folder FOLDER -output_folder OUTPUT_FOLDER
+                          [-output_prefix OUTPUT_PREFIX] [-nproc NPROC]
+                          [--add_wiki_title] [--keep_anchor] [--no_punct]
+                          [--lower] [--debug]
 
 optional arguments:
-  -h, --help        show this help message and exit
-  -folder FOLDER    path to Wikipedia extracted by WikiExtractor
-  -output OUTPUT    output path
-  -nproc NPROC      # processes
-  --add_wiki_title  whether to export Wiki title in the sentence
+  -h, --help            show this help message and exit
+  -folder FOLDER        path to Wikipedia extracted by WikiExtractor
+  -output_folder OUTPUT_FOLDER
+                        folder to save outpus
+  -output_prefix OUTPUT_PREFIX
+                        output prefix
+  -nproc NPROC          # processes
+  --add_wiki_title      whether to export Wiki title in the sentence
+  --keep_anchor         if export wiki title, whether to keep anchor text
+  --no_punct            whether to remove punctuations
+  --lower               lower case
   --debug
+
 ```
 
 **Note**: when `--add_wiki_title` is set, Wikipeida title is preserved in addition to the anchor text.
